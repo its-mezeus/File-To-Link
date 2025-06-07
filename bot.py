@@ -1,6 +1,5 @@
 import os
 import time
-import asyncio
 from threading import Thread
 from flask import Flask, send_from_directory, abort
 from pyrogram import Client, filters
@@ -126,7 +125,7 @@ async def file_handler(_, message):
     await message.download(file_path)
 
     # Create the download link using BASE_URL
-    download_link = f"{BASE_URL}/{filename}"
+    download_link = f"{BASE_URL}/files/{filename}"
 
     reply_text = f"""✅ <b>Your file is ready to download:</b>
 
@@ -139,12 +138,6 @@ async def file_handler(_, message):
 # Run Flask app in a thread
 def run_flask():
     flask_app.run(host=FLASK_HOST, port=FLASK_PORT)
-
-# Function to fix time sync
-async def fix_time_sync(client):
-    await client.connect()
-    await client.session.set_server_time()
-    await client.disconnect()
 
 if __name__ == "__main__":
     # Check that environment variables are set
@@ -161,8 +154,10 @@ if __name__ == "__main__":
     print("[Starting Flask server thread...]")
     Thread(target=run_flask).start()
 
-    print("[Fixing Telegram client time sync...]")
-    asyncio.run(fix_time_sync(app))
-
     print("[Starting Telegram bot...]")
-    app.run()
+    app.start()  # Starts and syncs session time
+
+    app.idle()  # Keeps the bot running and listening
+
+    # Optional cleanup after stop
+    app.stop()
