@@ -3,21 +3,20 @@ print("System time (UTC):", time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()))
 
 import os
 from threading import Thread
+from datetime import datetime, timezone
 from flask import Flask, send_from_directory, abort
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# --- Configuration ---
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-API_ID = YOUR_API_ID  # Replace with your actual API ID (integer)
-API_HASH = "YOUR_API_HASH_HERE"
-
-# Replace with your actual public URL (no trailing slash)
-BASE_URL = "https://yourdomain.com/files"
+# --- Configuration from environment variables ---
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+API_ID = int(os.environ.get("API_ID", 0))  # must convert to int
+API_HASH = os.environ.get("API_HASH")
+BASE_URL = os.environ.get("BASE_URL")  # e.g. https://yourdomain.com/files
 
 # Flask server info
 FLASK_HOST = "0.0.0.0"
-FLASK_PORT = 5000
+FLASK_PORT = int(os.environ.get("PORT", 5000))
 
 download_folder = "./downloads"
 
@@ -26,6 +25,9 @@ flask_app = Flask(__name__)
 
 # Ensure download folder exists
 os.makedirs(download_folder, exist_ok=True)
+
+def utc_now_str():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 # Flask route to serve files securely
 @flask_app.route("/files/<path:filename>")
@@ -62,6 +64,8 @@ async def start(_, message):
 
 ✨ Fast · Free · Friendly
 ⚙️ Files are stored temporarily.
+
+<i>Current UTC time: {utc_now_str()}</i>
 """
     await message.reply_text(text, reply_markup=start_keyboard, parse_mode="html")
 
@@ -101,6 +105,8 @@ async def callbacks(_, query):
 
 ✨ Fast · Free · Friendly
 ⚙️ Files are stored temporarily.
+
+<i>Current UTC time: {utc_now_str()}</i>
 """
         await query.message.edit(text, reply_markup=start_keyboard, parse_mode="html")
         await query.answer()
@@ -141,10 +147,20 @@ async def file_handler(_, message):
 
 # Run Flask app in a thread
 def run_flask():
+    print(f"[{utc_now_str()}] Starting Flask server...")
     flask_app.run(host=FLASK_HOST, port=FLASK_PORT)
 
 if __name__ == "__main__":
-    print("Starting Flask server...")
+    # Check that environment variables are set
+    missing_vars = []
+    for var in ["BOT_TOKEN", "API_ID", "API_HASH", "BASE_URL"]:
+        if not os.environ.get(var):
+            missing_vars.append(var)
+    if missing_vars:
+        print(f"Error: Missing environment variables: {', '.join(missing_vars)}")
+        exit(1)
+
+    print(f"[{utc_now_str()}] Starting Flask server thread...")
     Thread(target=run_flask).start()
-    print("Starting Telegram bot...")
+    print(f"[{utc_now_str()}] Starting Telegram bot...")
     app.run()
