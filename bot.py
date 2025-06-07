@@ -1,9 +1,7 @@
-import time
-print("System time (UTC):", time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()))
-
 import os
+import time
+import asyncio
 from threading import Thread
-from datetime import datetime, timezone
 from flask import Flask, send_from_directory, abort
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -25,9 +23,6 @@ flask_app = Flask(__name__)
 
 # Ensure download folder exists
 os.makedirs(download_folder, exist_ok=True)
-
-def utc_now_str():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 # Flask route to serve files securely
 @flask_app.route("/files/<path:filename>")
@@ -64,8 +59,6 @@ async def start(_, message):
 
 ✨ Fast · Free · Friendly
 ⚙️ Files are stored temporarily.
-
-<i>Current UTC time: {utc_now_str()}</i>
 """
     await message.reply_text(text, reply_markup=start_keyboard, parse_mode="html")
 
@@ -105,8 +98,6 @@ async def callbacks(_, query):
 
 ✨ Fast · Free · Friendly
 ⚙️ Files are stored temporarily.
-
-<i>Current UTC time: {utc_now_str()}</i>
 """
         await query.message.edit(text, reply_markup=start_keyboard, parse_mode="html")
         await query.answer()
@@ -147,8 +138,13 @@ async def file_handler(_, message):
 
 # Run Flask app in a thread
 def run_flask():
-    print(f"[{utc_now_str()}] Starting Flask server...")
     flask_app.run(host=FLASK_HOST, port=FLASK_PORT)
+
+# Function to fix time sync
+async def fix_time_sync(client):
+    await client.connect()
+    await client.session.set_server_time()
+    await client.disconnect()
 
 if __name__ == "__main__":
     # Check that environment variables are set
@@ -160,7 +156,13 @@ if __name__ == "__main__":
         print(f"Error: Missing environment variables: {', '.join(missing_vars)}")
         exit(1)
 
-    print(f"[{utc_now_str()}] Starting Flask server thread...")
+    print("System time (UTC):", time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()))
+
+    print("[Starting Flask server thread...]")
     Thread(target=run_flask).start()
-    print(f"[{utc_now_str()}] Starting Telegram bot...")
+
+    print("[Fixing Telegram client time sync...]")
+    asyncio.run(fix_time_sync(app))
+
+    print("[Starting Telegram bot...]")
     app.run()
