@@ -1,5 +1,6 @@
 import os
 import time
+import requests
 from threading import Thread
 from flask import Flask, send_from_directory, abort
 from pyrogram import Client, filters
@@ -118,15 +119,11 @@ async def file_handler(_, message):
 
     original_name = file.file_name or "file"
     filename = f"{file.file_id}_{original_name}"
-
     file_path = os.path.join(download_folder, filename)
 
-    # Download the file
     await message.download(file_path)
 
-    # Create the download link using BASE_URL
-    download_link = f"{BASE_URL}/files/{filename}"
-
+    download_link = f"{BASE_URL}/{filename}"
     reply_text = f"""✅ <b>Your file is ready to download:</b>
 
 <a href="{download_link}">{download_link}</a>
@@ -139,25 +136,38 @@ async def file_handler(_, message):
 def run_flask():
     flask_app.run(host=FLASK_HOST, port=FLASK_PORT)
 
+# Wait for system time to sync with UTC
+def wait_for_time_sync(max_wait=30):
+    print("System time (UTC):", time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()))
+    print("Checking time sync with Telegram servers...")
+    for i in range(max_wait):
+        local_time = int(time.time())
+        try:
+            telegram_time = int(requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC").json()["unixtime"])
+            drift = abs(local_time - telegram_time)
+            if drift < 5:
+                print(f"✅ Time synced (drift: {drift}s).")
+                return
+            else:
+                print(f"❌ Time not synced (drift: {drift}s). Retrying...")
+        except:
+            print("⚠️ Failed to fetch server time. Retrying...")
+        time.sleep(1)
+    print("⚠️ Proceeding anyway. Pyrogram may still fail.")
+
 if __name__ == "__main__":
-    # Check that environment variables are set
-    missing_vars = []
-    for var in ["BOT_TOKEN", "API_ID", "API_HASH", "BASE_URL"]:
-        if not os.environ.get(var):
-            missing_vars.append(var)
+    # Check env vars
+    missing_vars = [var for var in ["BOT_TOKEN", "API_ID", "API_HASH", "BASE_URL"] if not os.environ.get(var)]
     if missing_vars:
         print(f"Error: Missing environment variables: {', '.join(missing_vars)}")
         exit(1)
 
-    print("System time (UTC):", time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()))
+    wait_for_time_sync()  # <<< time check
 
     print("[Starting Flask server thread...]")
     Thread(target=run_flask).start()
 
     print("[Starting Telegram bot...]")
-    app.start()  # Starts and syncs session time
-
-    app.idle()  # Keeps the bot running and listening
-
-    # Optional cleanup after stop
+    app.start()
+    app.idle()
     app.stop()
