@@ -1,18 +1,23 @@
+import time
+print("System time (UTC):", time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime()))
+
 import os
 from threading import Thread
 from flask import Flask, send_from_directory, abort
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# --- Configuration from environment variables ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-API_ID = int(os.environ.get("API_ID", 0))  # must convert to int
-API_HASH = os.environ.get("API_HASH")
-BASE_URL = os.environ.get("BASE_URL")  # e.g. https://yourdomain.com/files
+# --- Configuration ---
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+API_ID = YOUR_API_ID  # Replace with your actual API ID (integer)
+API_HASH = "YOUR_API_HASH_HERE"
+
+# Replace with your actual public URL (no trailing slash)
+BASE_URL = "https://yourdomain.com/files"
 
 # Flask server info
 FLASK_HOST = "0.0.0.0"
-FLASK_PORT = int(os.environ.get("PORT", 5000))
+FLASK_PORT = 5000
 
 download_folder = "./downloads"
 
@@ -139,15 +144,6 @@ def run_flask():
     flask_app.run(host=FLASK_HOST, port=FLASK_PORT)
 
 if __name__ == "__main__":
-    # Check that environment variables are set
-    missing_vars = []
-    for var in ["BOT_TOKEN", "API_ID", "API_HASH", "BASE_URL"]:
-        if not os.environ.get(var):
-            missing_vars.append(var)
-    if missing_vars:
-        print(f"Error: Missing environment variables: {', '.join(missing_vars)}")
-        exit(1)
-
     print("Starting Flask server...")
     Thread(target=run_flask).start()
     print("Starting Telegram bot...")
